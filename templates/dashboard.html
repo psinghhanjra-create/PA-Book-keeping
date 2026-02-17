@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Expense Dashboard</title>
+    <meta http-equiv="refresh" content="60">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            margin: 20px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .layout {
+            display: grid;
+            grid-template-columns: 60% 40%;
+            gap: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background: #2c3e50;
+            color: white;
+        }
+        .footer-total {
+            font-weight: bold;
+            background: #f1f1f1;
+        }
+        .chart-section {
+            height: 420px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Expense Dashboard</h2>
+
+    <form method="get" id="filterForm">
+
+        From:
+        <input type="date" name="from_date" required
+               value="{{request.args.get('from_date','')}}"
+               onchange="autoSubmit()">
+
+        To:
+        <input type="date" name="to_date" required
+               value="{{request.args.get('to_date','')}}"
+               onchange="autoSubmit()">
+
+        Category:
+        <select name="category" onchange="autoSubmit()">
+            <option>All</option>
+            {% for c in categories %}
+            <option {% if request.args.get('category') == c %}selected{% endif %}>
+                {{c}}
+            </option>
+            {% endfor %}
+        </select>
+
+        Payment:
+        <select name="payment" onchange="autoSubmit()">
+            <option>All</option>
+            {% for p in payments %}
+            <option {% if request.args.get('payment') == p %}selected{% endif %}>
+                {{p}}
+            </option>
+            {% endfor %}
+        </select>
+
+        <label>
+            <input type="checkbox" name="details" value="1"
+                   onchange="autoSubmit()"
+                   {% if request.args.get('details') %}checked{% endif %}>
+            Show detailed transactions
+        </label>
+
+    </form>
+
+    {% if total > 0 %}
+    <h3>Total Expense: {{total}}</h3>
+    {% endif %}
+</div>
+
+{% if total > 0 %}
+<div class="card layout">
+
+    <div>
+        {% if show_details %}
+        <table>
+            <tr>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Payment</th>
+            </tr>
+            {% for r in rows %}
+            <tr>
+                <td>{{r["Date"].strftime("%d-%m-%Y")}}</td>
+                <td>{{r["Category"]}}</td>
+                <td>{{r["Description"]}}</td>
+                <td>{{r["Amount"]}}</td>
+                <td>{{r["Payment Method"]}}</td>
+            </tr>
+            {% endfor %}
+            <tr class="footer-total">
+                <td colspan="3">Total</td>
+                <td>{{total}}</td>
+                <td></td>
+            </tr>
+        </table>
+        {% else %}
+        <table>
+            <tr>
+                <th>Category</th>
+                <th>Total Amount</th>
+            </tr>
+            {% for cat, amt in summary.items() %}
+            <tr>
+                <td>{{cat}}</td>
+                <td>{{amt}}</td>
+            </tr>
+            {% endfor %}
+            <tr class="footer-total">
+                <td>Total</td>
+                <td>{{total}}</td>
+            </tr>
+        </table>
+        {% endif %}
+    </div>
+
+    <div class="chart-section">
+        <canvas id="expenseChart"></canvas>
+    </div>
+
+</div>
+{% endif %}
+
+<script>
+function autoSubmit() {
+    const from = document.querySelector('[name="from_date"]').value;
+    const to = document.querySelector('[name="to_date"]').value;
+
+    // Only submit if both dates are selected
+    if (from && to) {
+        document.getElementById("filterForm").submit();
+    }
+}
+</script>
+
+<script>
+    const data = {};
+    {% for cat, amt in summary.items() %}
+        data["{{cat}}"] = {{amt}};
+    {% endfor %}
+
+    if (Object.keys(data).length > 0) {
+        const ctx = document.getElementById('expenseChart');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(data),
+                datasets: [{
+                    data: Object.values(data),
+                    backgroundColor: [
+                        "#4e79a7","#f28e2b","#e15759",
+                        "#76b7b2","#59a14f","#edc949",
+                        "#af7aa1","#ff9da7","#9c755f"
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
